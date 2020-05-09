@@ -55,7 +55,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSAlertDelegate {
 	}
 	
 	fileprivate func getEditorVC() -> EditorViewController? {
-		guard let window = NSApplication.shared().keyWindow else {
+        guard let window = NSApplication.shared.keyWindow else {
 			return nil
 		}
 		if let vc = window.contentViewController as? EditorViewController {
@@ -72,16 +72,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSAlertDelegate {
 	
 	// Alert button methods
 	
-	func killApp() {
+    @objc func killApp() {
 		exit(EXIT_FAILURE)
 	}
 	
-	func fixError() {
+    @objc func fixError() {
 		guard let url = URL(string: "http://www.apple.com/mac/") else {
 			exit(EXIT_FAILURE)
 		}
 		
-		NSWorkspace.shared().open(url)
+        NSWorkspace.shared.open(url)
 		exit(EXIT_FAILURE)
 	}
 	

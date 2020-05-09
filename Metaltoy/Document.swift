@@ -8,17 +8,15 @@
 
 import Cocoa
 
-class Document: NSDocument {
+class Document: NSDocument, NSOpenSavePanelDelegate{
 
 	var shader: Shader?
-	
+    var texture: MTLTexture?
+    var openDialog: NSOpenPanel?
+    
 	override init() {
 	    super.init()
 		// Add your subclass-specific initialization here.
-	}
-
-	override class func autosavesInPlace() -> Bool {
-		return true
 	}
 
 	override func makeWindowControllers() {
@@ -34,6 +32,7 @@ class Document: NSDocument {
 			vc.setShader(s)
 		}
 	}
+    
 
 	override func data(ofType typeName: String) throws -> Data {
 		// Insert code here to write your document to data of the specified type. If outError != nil, ensure that you create and set an appropriate error when returning nil.

@@ -43,7 +43,7 @@ struct ShaderFunctionList {
 	let compute: [String]
 }
 
-class EditorViewController: NSViewController, NSTextViewDelegate {
+class EditorViewController: NSViewController, NSTextViewDelegate, NSOpenSavePanelDelegate {
 
 	@IBOutlet var editView: NSTextView!
 	@IBOutlet var logView: NSTextView!
@@ -52,7 +52,7 @@ class EditorViewController: NSViewController, NSTextViewDelegate {
 	
 	@IBOutlet weak var pragmaSelector: NSPopUpButton!
 	var pragmas: [(String, Int)] = []
-	
+    var openDialog: NSOpenPanel? = nil
 	@IBOutlet weak var functionSelector1: NSPopUpButton!
 	@IBOutlet weak var functionSelector2: NSPopUpButton!
 	
@@ -87,12 +87,36 @@ class EditorViewController: NSViewController, NSTextViewDelegate {
 		
 		//		Add a ruler. This is actually the line count view.
 		editScrollView.hasVerticalRuler = true
-		ruler = RulerWithLineNumbers(scrollView: editScrollView, orientation: NSRulerOrientation.verticalRuler)
+        ruler = RulerWithLineNumbers(scrollView: editScrollView, orientation: NSRulerView.Orientation.verticalRuler)
 		ruler.clientView = editView
 		editScrollView.verticalRulerView = ruler
 		editScrollView.rulersVisible = true
 	}
 	
+    @IBAction func openTexture(_ button: NSButton) {
+        let openDialog = NSOpenPanel()
+        openDialog.allowsMultipleSelection = false
+        openDialog.canChooseDirectories = false
+        openDialog.canCreateDirectories = false
+        openDialog.canChooseFiles = true
+        openDialog.allowedFileTypes = NSImage.imageTypes
+        self.openDialog = openDialog
+
+        openDialog.begin { (result) -> Void in
+            if result == .OK {
+                //Do what you will
+                //If there's only one URL, surely 'openPanel.URL'
+                //but otherwise a for loop works
+                guard let selectedURL = openDialog.url else {return}
+                self.openTextureFile(selectedURL)
+            }
+        }
+    }
+
+    func openTextureFile(_ url:URL) {
+        previewVC.loadBackgroundTexture(withUrl: url)
+    }
+    
 	/// Sets the shader after loading from file
 	///
 	/// - Parameter newShader: THe loaded Shader value
@@ -176,7 +200,7 @@ class EditorViewController: NSViewController, NSTextViewDelegate {
 		let lineNo = pragmas[sender.indexOfSelectedItem].1
 		
 		// get visible rect
-		let src = editView.string! as NSString
+        let src = editView.string as NSString
 		let line = src.components(separatedBy: .newlines)[lineNo]
 		let range = src.range(of: line)
 		
@@ -201,7 +225,7 @@ class EditorViewController: NSViewController, NSTextViewDelegate {
 		ruler.setNeedsDisplay(ruler.visibleRect)
 		
 		// Update the shader's source variable
-		guard let src = editView.string else { return }
+		let src = editView.string
 		shader.source = src.trimmingCharacters(in: .whitespacesAndNewlines)
 	}
 	
@@ -218,10 +242,11 @@ class EditorViewController: NSViewController, NSTextViewDelegate {
 		// Clear the log view's text
 		logView.string = ""
 		
-		guard let dev = mtlDev, let s = editView.string else {
-			return
-		}
-		
+		guard let dev = mtlDev  else {
+                   return
+               }
+               
+        let s = editView.string
 		let src = s as NSString
 		
 		// Find the visible text area, because reseting the colour causes it to lose place
@@ -264,7 +289,7 @@ class EditorViewController: NSViewController, NSTextViewDelegate {
 					if offsets.count < 3 { continue }
 					
 					// Find line / character offsets
-					let lineNo = Int(offsets[1])!
+					let lineNo = Int(offsets[2])!
 					//					let charNo = Int(offsets[2])! // Not used at present
 					
 					// get line, then find it's range
@@ -300,7 +325,7 @@ class EditorViewController: NSViewController, NSTextViewDelegate {
 		// Parse the source, look for lines beginning 'vertex', 'fragment' or 'kernel'
 		for line in shader.source.components(separatedBy: .newlines) {
 			// There's a minimum line length, skip if below that:
-			if line.characters.count < 10 { continue }
+            if line.count < 10 { continue }
 			
 			// Get the first section of the line
 			let char7 = line.substring(to: shader.source.index(shader.source.startIndex, offsetBy: 7))
@@ -351,7 +376,7 @@ class EditorViewController: NSViewController, NSTextViewDelegate {
 			let line = lines[i]
 			
 			// Skip short lines that can't be what we need
-			if line.characters.count < 13 { continue }
+			if line.count < 13 { continue }
 			
 			// Search the start of the line for #pragma
 			let startChars = line.substring(to: shader.source.index(shader.source.startIndex, offsetBy: 13))

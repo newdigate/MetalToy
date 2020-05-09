@@ -60,11 +60,11 @@ class PreviewViewController: NSViewController {
 		
 		// Add constraints
 		let h = NSLayoutConstraint.constraints(withVisualFormat: "H:|[view]|",
-		                                       options: NSLayoutFormatOptions(),
+                                               options: NSLayoutConstraint.FormatOptions(),
 		                                       metrics: nil,
 		                                       views: ["view": mtlView])
 		let v = NSLayoutConstraint.constraints(withVisualFormat: "V:|[view]|",
-		                                       options: NSLayoutFormatOptions(),
+                                               options: NSLayoutConstraint.FormatOptions(),
 		                                       metrics: nil,
 		                                       views: ["view": mtlView])
 		previewView.addConstraints(h + v)
@@ -79,12 +79,17 @@ class PreviewViewController: NSViewController {
 	}
 	
 	@IBAction func playPause(_ sender: NSButton) {
-		mtlView.isPaused = sender.state == NSOffState
+        mtlView.isPaused = sender.state == .off
 	}
 	
 	@IBAction func resetTime(_ sender: Any) {
 		mtlViewDelegate.resetTime()
 	}
+    
+    func loadBackgroundTexture(withUrl path:URL){
+        let textureLoader = MTKTextureLoader(device: mtlView.device!)
+        mtlViewDelegate.backgroundTexture = try! textureLoader.newTexture(URL: path)
+    }
 }
 
 
@@ -102,6 +107,8 @@ class MetalViewDelegate: NSObject, MTKViewDelegate {
 	var initialResSet = false
 	var startTime: Date
 	
+    var backgroundTexture: MTLTexture?
+    
 	var frameDurations: [Double] = Array.init(repeating: 0.0, count: 10) // Take the average of the last 10 frames
 	var fpsUpdateCount = 0
 	var fpsCounterStartTime: Date
@@ -149,7 +156,7 @@ class MetalViewDelegate: NSObject, MTKViewDelegate {
 			do {
 				guard let mainKernel = library.makeFunction(name: shader!.activeComputeFunction) else { return }
 				computePS = try dev.makeComputePipelineState(function: mainKernel)
-				
+                
 			} catch let error {
 				Swift.print(error.localizedDescription)
 			}
@@ -215,20 +222,22 @@ class MetalViewDelegate: NSObject, MTKViewDelegate {
 		
 		switch  shader.type {
 		case .Compute:
-			guard let pipe = computePS, let queue = self.queue else { return }
+			guard let pipe = computePS, let queue = self.queue,
 			
-			let commandBuffer = queue.makeCommandBuffer()
-			let commandEncoder = commandBuffer.makeComputeCommandEncoder()
+			let commandBuffer = queue.makeCommandBuffer(),
+            let commandEncoder = commandBuffer.makeComputeCommandEncoder() else { return }
 			commandEncoder.setComputePipelineState(pipe)
-			commandEncoder.setTexture(drawable.texture, at: 0)
-			commandEncoder.setBuffer(timeBuffer, offset: 0, at: 0)
-			
+            commandEncoder.setTexture(drawable.texture, index: 0)
+            commandEncoder.setTexture(backgroundTexture, index: 1)
+            commandEncoder.setBuffer(timeBuffer, offset: 0, index: 0)
+			commandEncoder.setBuffer(resBuffer, offset: 0, index: 1)
+            
 			// TODO: Handle non-factor-of-8 sizes
 			let threadGroupCount = MTLSizeMake(8, 8, 1)
 			let threadGroups = MTLSizeMake(drawable.texture.width / threadGroupCount.width, drawable.texture.height / threadGroupCount.height, 1)
 			commandEncoder.dispatchThreadgroups(threadGroups, threadsPerThreadgroup: threadGroupCount)
 			commandEncoder.endEncoding()
-			commandBuffer.present(drawable)
+            commandBuffer.present(view.currentDrawable!)
 			commandBuffer.commit()
 			
 		case .Fragment:
@@ -240,21 +249,21 @@ class MetalViewDelegate: NSObject, MTKViewDelegate {
 			view.currentRenderPassDescriptor!.colorAttachments[0].storeAction = MTLStoreAction.store
 
 			// get command queue, buffer, encoder
-			let cmdBuffer = queue.makeCommandBuffer()
-			let cmdEncoder = cmdBuffer.makeRenderCommandEncoder(descriptor: view.currentRenderPassDescriptor!)
+            guard let cmdBuffer = queue.makeCommandBuffer(),
+			let cmdEncoder = cmdBuffer.makeRenderCommandEncoder(descriptor: view.currentRenderPassDescriptor!) else {return}
 
 			// encode the render
 			cmdEncoder.setRenderPipelineState(pipe)
-			cmdEncoder.setVertexBuffer(vertPosBuffer, offset: 0, at: 0)
-			cmdEncoder.setVertexBuffer(vertCoordBuffer, offset: 0, at: 1)
+            cmdEncoder.setVertexBuffer(vertPosBuffer, offset: 0, index: 0)
+            cmdEncoder.setVertexBuffer(vertCoordBuffer, offset: 0, index: 1)
 			
-			cmdEncoder.setFragmentBuffer(timeBuffer, offset: 0, at: 0)
-			cmdEncoder.setFragmentBuffer(resBuffer, offset: 0, at: 1)
+            cmdEncoder.setFragmentBuffer(timeBuffer, offset: 0, index: 0)
+            cmdEncoder.setFragmentBuffer(resBuffer, offset: 0, index: 1)
 			
 			// TODO: Texture support
-// set the texture
-//cmd.encoder.setFragmentTexture(texture!.tex, at: 0)
-//cmd.encoder.setFragmentSamplerState(samplerState, at: 0)
+            // set the texture
+//            cmdEncoder.setFragmentTexture(texture!.tex, at: 0)
+//            cmdEncoder.setFragmentSamplerState(samplerState, at: 0)
 			cmdEncoder.drawPrimitives(type: MTLPrimitiveType.triangleStrip, vertexStart: 0, vertexCount: 4, instanceCount: 1)
 			
 			cmdEncoder.endEncoding()
@@ -287,5 +296,7 @@ class MetalViewDelegate: NSObject, MTKViewDelegate {
 			fpsUpdateCount = 0
 		}
 	}
+    
+
 	
 }

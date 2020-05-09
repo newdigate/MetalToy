@@ -11,7 +11,7 @@ import Cocoa
 /// An NSRuler subclass. Provides line numbering for source code, and supports lines that span multiple lines on-screen.
 class RulerWithLineNumbers: NSRulerView {
 
-	override init(scrollView: NSScrollView?, orientation: NSRulerOrientation) {
+    override init(scrollView: NSScrollView?, orientation: NSRulerView.Orientation) {
 		super.init(scrollView: scrollView, orientation: orientation)
 		
 		ruleThickness = 40.0
@@ -34,9 +34,9 @@ class RulerWithLineNumbers: NSRulerView {
 		guard let view = clientView as! NSTextView? else { return }
 		
 		// Exit if there's no text
-		if view.string?.characters.count == 0 { return }
+        if view.string == "" { return }
 		
-		let textString = view.string! as NSString
+        let textString = view.string as NSString
 		
 		// Handle insets
 		let insetHeight = view.textContainerInset.height
@@ -45,7 +45,7 @@ class RulerWithLineNumbers: NSRulerView {
 		let relativePoint = self.convert(NSZeroPoint, from: view)
 		
 		// Preserve the attributes, because we want to match font etc. to the text editor
-		let lineNumberAttributes = view.textStorage!.attributes(at: 0, effectiveRange: nil)
+        let lineNumberAttributes:[NSAttributedString.Key : Any]? = view.textStorage?.attributes(at: 0, effectiveRange: nil)
 		
 		// Get the range of visible glyphs in the client text view
 		let visibleGlyphRange = view.layoutManager?.glyphRange(forBoundingRect: view.visibleRect, in: view.textContainer!)
@@ -101,17 +101,17 @@ class RulerWithLineNumbers: NSRulerView {
 	}
 	
 	// Draws the line number text
-	func drawLineNumberInRect(lineNumber: Int, lineRect: NSRect, attributes: [String: Any], ruleThickness: CGFloat) {
+    func drawLineNumberInRect(lineNumber: Int, lineRect: NSRect, attributes: [NSAttributedString.Key: Any]?, ruleThickness: CGFloat) {
 		let string = String(lineNumber)
 		let attString = NSAttributedString(string: string, attributes: attributes)
 		let x = ruleThickness - 5.0 - attString.size().width
 		
-		let font = attributes[NSFontAttributeName] as! NSFont
+        let font = attributes![NSAttributedString.Key.font] as! NSFont
 		
 		var lr = lineRect
 		lr.origin.x = x;
 		lr.origin.y += font.ascender
 		
-		attString.draw(with: lr, options: NSStringDrawingOptions())
+        attString.draw(with: lr, options: NSString.DrawingOptions())
 	}
 }
