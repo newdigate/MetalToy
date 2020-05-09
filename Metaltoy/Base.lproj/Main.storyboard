@@ -725,7 +725,7 @@
                                     <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                     <subviews>
                                         <textView importsGraphics="NO" richText="NO" verticallyResizable="YES" findStyle="panel" allowsUndo="YES" allowsNonContiguousLayout="YES" spellingCorrection="YES" id="7ym-hH-gvS">
-                                            <rect key="frame" x="0.0" y="0.0" width="470" height="714"/>
+                                            <rect key="frame" x="0.0" y="0.0" width="470" height="728"/>
                                             <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                             <color key="textColor" name="textColor" catalog="System" colorSpace="catalog"/>
                                             <color key="backgroundColor" name="quaternaryLabelColor" catalog="System" colorSpace="catalog"/>
@@ -742,6 +742,7 @@ kernel void basic(
 	device const float *time [[ buffer(0) ]],
     uint2 gid [[ thread_position_in_grid ]])
 {
+	float t = (*time);
 	const float PI = 3.1415926535897932384626433832795;
 
 	int x = gid[0] - outTexture.get_width() / 2;
@@ -758,7 +759,7 @@ kernel void basic(
 
     float radius = powr( powr(x, 2.0) + powr( y, 2.0), 0.5 );
 	
-	//theta = fmod( theta, PI/16.0);
+	theta = fmod( abs(theta), PI/16.0) + t;
 
 	int u = radius * cos(theta);
 	int v = radius * sin(theta);	
@@ -780,7 +781,7 @@ kernel void basic(
 				1.0);
 	float4 in = inTexture.read(uv);
     outTexture.write(in, gid);
-} </mutableString>
+}  </mutableString>
                                                     <attributes>
                                                         <color key="NSColor" name="textColor" catalog="System" colorSpace="catalog"/>
                                                         <font key="NSFont" metaFont="user"/>
