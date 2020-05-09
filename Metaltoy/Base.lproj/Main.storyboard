@@ -725,7 +725,7 @@
                                     <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                     <subviews>
                                         <textView importsGraphics="NO" richText="NO" verticallyResizable="YES" findStyle="panel" allowsUndo="YES" allowsNonContiguousLayout="YES" spellingCorrection="YES" id="7ym-hH-gvS">
-                                            <rect key="frame" x="0.0" y="0.0" width="470" height="378"/>
+                                            <rect key="frame" x="0.0" y="0.0" width="470" height="714"/>
                                             <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                             <color key="textColor" name="textColor" catalog="System" colorSpace="catalog"/>
                                             <color key="backgroundColor" name="quaternaryLabelColor" catalog="System" colorSpace="catalog"/>
@@ -738,18 +738,39 @@ using namespace metal;
 
 kernel void basic(
 	texture2d&lt;float, access::write&gt; outTexture [[ texture(0) ]],
+	texture2d&lt;float, access::read&gt; inTexture [[ texture(1) ]],
 	device const float *time [[ buffer(0) ]],
     uint2 gid [[ thread_position_in_grid ]])
 {
 	const float PI = 3.1415926535897932384626433832795;
 
-	uint x = gid[0];
-	uint y = gid[1];
+	int x = gid[0] - outTexture.get_width() / 2;
+	int y = gid[1] - outTexture.get_height() / 2;
 
-	float theta = atan(1.0 * (x/10.0) / (y/10.0) );
-    float radius = powr( powr(x, 2.0) * powr( y, 2.0), 0.5 );
+	float2 scale = float2( 
+		outTexture.get_width() / inTexture.get_width(),
+		outTexture.get_height() / inTexture.get_height()
+ 	);
+
+	float theta = atan((1.0 * y)/ (1.0 * x) );
+	if (x &lt; 0.0)
+		theta += PI;
+
+    float radius = powr( powr(x, 2.0) + powr( y, 2.0), 0.5 );
 	
-	theta = fmod( theta, PI/16.0);
+	//theta = fmod( theta, PI/16.0);
+
+	int u = radius * cos(theta);
+	int v = radius * sin(theta);	
+
+	//int u = radius * cos(theta) + (outTexture.get_width() / 2);	//int v = radius * sin(theta) + (outTexture.get_height() / 2);	
+	float2 fuv = float2( 
+						1.0 * u * inTexture.get_width() / outTexture.get_width() , 
+						1.0 * v * inTexture.get_height() / outTexture.get_height() );
+	uint2 uv = uint2(
+		floor(fuv.x) + inTexture.get_width() / 2,
+		floor(fuv.y) + inTexture.get_height() / 2
+	);
 
 	float4 origin =  
 		float4(
@@ -757,9 +778,9 @@ kernel void basic(
 				cos(theta*radius/1000.0), 
 				cos(radius/10.0),
 				1.0);
-	
-    outTexture.write(origin, gid);
-}</mutableString>
+	float4 in = inTexture.read(uv);
+    outTexture.write(in, gid);
+} </mutableString>
                                                     <attributes>
                                                         <color key="NSColor" name="textColor" catalog="System" colorSpace="catalog"/>
                                                         <font key="NSFont" metaFont="user"/>
